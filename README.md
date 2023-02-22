@@ -54,8 +54,8 @@ Ingress用于将外部流量路由到Kubernetes集群内部的服务，可以通
 
 
 # 常用
-kubectl get pods -o wide --all-namespaces
-kubectl get server -A
-kubectl get nodes
-kubectl describe pod -n {namespace} {podname}
-kubectl top nodes
+. kubectl get pods -o wide --all-namespaces
+. kubectl get server -A
+. kubectl get nodes
+. kubectl describe pod -n {namespace} {podname}
+. kubectl top nodes

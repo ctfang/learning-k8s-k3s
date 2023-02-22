@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+spec:
+  replicas: 1 # 自动扩容到 3 个副本
+  selector:
+    matchLabels:
+      app: worker # 匹配标签为 app=worker 的 Pod
+  template:
+    metadata:
+      labels:
+        app: worker # 设置 Pod 的标签为 app=worker
+    spec:
+      containers:
+        - name: worker # 容器名称为 worker
+          imagePullPolicy: IfNotPresent
+          image: feizhaoer/worker-demo:v0.0.1 # 容器镜像为 worker 版本 1.14.2
+          volumeMounts: # 挂载点设置
+            - name: config-volume # 存储卷的名称，与下面对应
+              mountPath: /data/wwwroot/.env
+              subPath: .env
+              readOnly: true # 只读模式，不允许修改文件内容
+      volumes: # 存储卷设置
+        - name: config-volume # 存储卷的名称，与上面对应
+          configMap: # 存储卷类型为 ConfigMap
+            name: worker-config # ConfigMap 的名称，与之前创建时一致
+            items:
+              - key: env # ConfigMap 中的键名，与之前创建时一致
+                path: .env # 文件名，在挂载点路径下生成这个文件
+---
+# 设定扩缩容计划
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-app-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker-deployment
+  minReplicas: 1  # 最小副本数
+  maxReplicas: 3  # 最大副本数
+  metrics:
+    - type: Resource  # 使用资源指标
+      resource:
+        name: cpu  # 指定资源名称为CPU
+        target:
+          type: Utilization  # 使用平均使用率
+          averageUtilization: 60  # 目标平均使用率为80%
+        # 下面是对这个指标的一些注释
+        # 这个指标是根据CPU的使用率自动调整副本数量的
+        # 如果平均使用率超过80%，自动增加副本数量
+        # 如果平均使用率低于80%，自动减少副本数量
+    - type: Resource  # 使用资源指标
+      resource:
+        name: memory  # 指定资源名称为内存
+        target:
+          type: Utilization  # 使用平均使用率
+          averageUtilization: 5  # 目标平均使用率为5%
+        # 下面是对这个指标的一些注释
+        # 这个指标是根据内存的使用率自动调整副本数量的
+        # 如果平均使用率超过70%，自动增加副本数量
+        # 如果平均使用率低于70%，自动减少副本数量
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config # ConfigMap 的名称
+data:
+  env: | # 文本文件的名称和内容作为键值对
+    GATEWAY_ADDR=tcp-service.default.svc.cluster.local:7777

@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gameway-deployment
+spec:
+  replicas: 1 # 自动扩容到 3 个副本
+  selector:
+    matchLabels:
+      app: gameway # 匹配标签为 app=gameway 的 Pod
+  template:
+    metadata:
+      labels:
+        app: gameway # 设置 Pod 的标签为 app=gameway
+    spec:
+      containers:
+        - name: gameway # 容器名称为 gameway
+          imagePullPolicy: IfNotPresent
+          image: feizhaoer/gameway-demo:v0.0.1 # 容器镜像为 gameway 版本 1.14.2
+          ports:
+            - containerPort: 80 # 容器端口为 80
+#          readinessProbe: # 就绪探针配置
+#            httpGet: # 使用 HTTP GET 请求作为检测方式
+#              path: / # 请求路径为
+#              port: 80 # 请求端口为 80
+#            initialDelaySeconds: 10 # 初始延迟时间为 10 秒
+#            periodSeconds: 5 # 检测周期为每隔5秒一次
+          volumeMounts: # 挂载点设置
+            - name: config-volume # 存储卷的名称，与下面对应
+              mountPath: /data/wwwroot/.env
+              subPath: .env
+              readOnly: true # 只读模式，不允许修改文件内容
+      volumes: # 存储卷设置
+        - name: config-volume # 存储卷的名称，与上面对应
+          configMap: # 存储卷类型为 ConfigMap
+            name: gateway-config # ConfigMap 的名称，与之前创建时一致
+            items:
+              - key: env # ConfigMap 中的键名，与之前创建时一致
+                path: .env # 文件名，在挂载点路径下生成这个文件
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket-service # 服务名称为 websocket-service
+spec:
+  selector:
+    app: gameway # 匹配标签为 app=gameway 的 Pod
+  ports:
+    - name: http
+      protocol: TCP # 协议为 TCP
+      port: 80 # 服务端口为 80
+      targetPort: 80 # 目标端口为 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tcp-service # 服务名称为 websocket-service
+spec:
+  selector:
+    app: gameway # 匹配标签为 app=gameway 的 Pod
+  ports:
+    - name: tcp
+      protocol: TCP # 协议为 TCP
+      port: 7777 # 服务端口为 80
+      targetPort: 7777 # 目标端口为 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sample-ingress
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: websocket-service
+                port:
+                  name: http
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config # ConfigMap 的名称
+data:
+  env: | # 文本文件的名称和内容作为键值对
+    LOG_LEVEL=debug
+    HTTP_PORT=80
+    TCP_PORT=7777
