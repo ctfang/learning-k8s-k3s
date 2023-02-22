@@ -21,6 +21,11 @@ spec:
               mountPath: /data/wwwroot/.env
               subPath: .env
               readOnly: true # 只读模式，不允许修改文件内容
+          resources:
+            limits:
+              memory: "512Mi"
+            requests:
+              memory: "200Mi"
       volumes: # 存储卷设置
         - name: config-volume # 存储卷的名称，与上面对应
           configMap: # 存储卷类型为 ConfigMap
@@ -44,20 +49,10 @@ spec:
   metrics:
     - type: Resource  # 使用资源指标
       resource:
-        name: cpu  # 指定资源名称为CPU
-        target:
-          type: Utilization  # 使用平均使用率
-          averageUtilization: 60  # 目标平均使用率为80%
-        # 下面是对这个指标的一些注释
-        # 这个指标是根据CPU的使用率自动调整副本数量的
-        # 如果平均使用率超过80%，自动增加副本数量
-        # 如果平均使用率低于80%，自动减少副本数量
-    - type: Resource  # 使用资源指标
-      resource:
         name: memory  # 指定资源名称为内存
         target:
           type: Utilization  # 使用平均使用率
-          averageUtilization: 5  # 目标平均使用率为5%
+          averageUtilization: 70  # 目标平均使用率为70%
         # 下面是对这个指标的一些注释
         # 这个指标是根据内存的使用率自动调整副本数量的
         # 如果平均使用率超过70%，自动增加副本数量
